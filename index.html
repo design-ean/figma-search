@@ -402,7 +402,7 @@
         placeholder="스크린 이름으로 검색 (예: 지역 필터, 요청서, 프로필)"
         oninput="onSearch()" autocomplete="off">
     </div>
-    <select class="search-mode-select" id="searchMode" onchange="onSearchModeChange()">
+    <select class="search-mode-select" id="searchMode" onchange="onSearchModeChange()" style="display:none">
       <option value="screen">화면 검색</option>
       <option value="component">컴포넌트 검색</option>
     </select>
