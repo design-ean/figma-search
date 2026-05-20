@@ -365,7 +365,6 @@
     <button class="btn btn-ghost" id="indexBtn" onclick="runSync()" style="font-size:11px; padding:5px 10px;">동기화</button>
     <button class="btn btn-ghost" onclick="forceFullSync()" style="font-size:11px; padding:5px 10px; color:#888;">전체 재인덱싱</button>
     <button class="btn btn-ghost" id="clearBtn" onclick="clearIndex()" style="font-size:11px; padding:5px 10px; color:#888;">인덱스 초기화</button>
-    <button class="btn btn-ghost" onclick="reloadPage()" style="font-size:11px; padding:5px 10px; color:#888;" title="사이트 최신 버전으로 강제 새로고침">새 버전 확인</button>
   </div>
 </div>
 
@@ -949,12 +948,7 @@
     renderEmpty('인덱스가 초기화됐어요. PAT를 입력하고 전체 재인덱싱을 해주세요.');
   }
 
-  function reloadPage() {
-    const url = location.pathname + '?v=' + Date.now();
-    location.href = url;
-  }
-
-  // ── Search ────────────────────────────────────────
+// ── Search ────────────────────────────────────────
   function onDedupChange() {
     dedupEnabled = document.getElementById('dedupCheck').checked;
     onSearch();
