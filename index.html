@@ -771,8 +771,8 @@
 
   // INSTANCE 제외한 레이어명 추출 (로컬 그룹·프레임 등 디자이너 작성 이름)
   const LAYER_NOISE = /^(frame|group|rectangle|ellipse|vector|line|polygon|star|text|image|component|\d[\d\s]*)$/i;
-  function extractLayerNames(children, maxDepth = 4) {
-    if (!children || maxDepth <= 0) return new Set();
+  function extractLayerNames(children) {
+    if (!children) return new Set();
     const names = new Set();
     for (const node of children) {
       if (node.type !== 'INSTANCE' && node.name) {
@@ -780,7 +780,7 @@
         if (raw.length > 1 && !LAYER_NOISE.test(raw)) names.add(raw);
       }
       if (node.children) {
-        for (const n of extractLayerNames(node.children, maxDepth - 1)) names.add(n);
+        for (const n of extractLayerNames(node.children)) names.add(n);
       }
     }
     return names;
