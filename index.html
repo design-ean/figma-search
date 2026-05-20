@@ -450,6 +450,46 @@
 
   const PAGE_SIZE = 30;
 
+  // ── IndexedDB (인덱스 저장용, localStorage 5MB 한계 우회) ──
+  const IDB_NAME = 'figma_search_db';
+  const IDB_STORE = 'kv';
+
+  function openIDB() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(IDB_NAME, 1);
+      req.onupgradeneeded = e => e.target.result.createObjectStore(IDB_STORE);
+      req.onsuccess = e => resolve(e.target.result);
+      req.onerror = e => reject(e.target.error);
+    });
+  }
+  async function idbSet(key, value) {
+    const db = await openIDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      tx.objectStore(IDB_STORE).put(value, key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = e => reject(e.target.error);
+    });
+  }
+  async function idbGet(key) {
+    const db = await openIDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const req = tx.objectStore(IDB_STORE).get(key);
+      req.onsuccess = e => resolve(e.target.result ?? null);
+      req.onerror = e => reject(e.target.error);
+    });
+  }
+  async function idbDelete(key) {
+    const db = await openIDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      tx.objectStore(IDB_STORE).delete(key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = e => reject(e.target.error);
+    });
+  }
+
   let index = [];
   let fileMap = {}; // file_key → { name, folder, type, ts }
   let activeFilter = 'all';
@@ -463,14 +503,14 @@
   let shownCount = 0;
 
   // ── Init ──────────────────────────────────────────
-  window.onload = () => {
-    const saved = localStorage.getItem(STORAGE_KEY);
+  window.onload = async () => {
     const savedPat = localStorage.getItem('figma_pat');
     const savedFileMap = localStorage.getItem(STORAGE_FILEMAP_KEY);
     if (savedPat) document.getElementById('patInput').value = savedPat;
     if (savedFileMap) fileMap = JSON.parse(savedFileMap);
+    const saved = await idbGet(STORAGE_KEY);
     if (saved) {
-      index = JSON.parse(saved);
+      index = saved;
       updateIndexStatus();
       buildFilters();
       renderEmpty('검색어를 입력해주세요.');
@@ -637,7 +677,7 @@
       localStorage.setItem(STORAGE_TS_KEY, JSON.stringify(timestamps));
 
       index = newIndex;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(index));
+      await idbSet(STORAGE_KEY, index);
       localStorage.setItem(STORAGE_META_KEY, JSON.stringify({ indexedAt: Date.now(), count: index.length }));
       updateIndexStatus();
       buildFilters();
@@ -645,7 +685,7 @@
       renderEmpty('검색어를 입력해주세요.');
 
     } catch (e) {
-      showError(`인덱싱 실패: ${e.message}\n\n미리보기 패널에서 외부 API 호출이 막혔을 수 있어요.\nHTML 파일을 브라우저에서 직접 열어주세요.\n(Finder에서 파일 더블클릭 → Safari/Chrome으로 열기)`);
+      showError(`인덱싱 실패: ${e.message}`);
     } finally {
       document.getElementById('indexBtn').disabled = false;
       document.getElementById('clearBtn').disabled = false;
@@ -736,7 +776,7 @@
     const names = new Set();
     for (const node of children) {
       if (node.type !== 'INSTANCE' && node.name) {
-        const raw = node.name.split('/')[0].split('_')[0].trim().toLowerCase();
+        const raw = node.name.split('/')[0].trim().toLowerCase();
         if (raw.length > 1 && !LAYER_NOISE.test(raw)) names.add(raw);
       }
       if (node.children) {
@@ -836,7 +876,7 @@
       localStorage.setItem(STORAGE_FILEMAP_KEY, JSON.stringify(fileMap));
 
       index = updated;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(index));
+      await idbSet(STORAGE_KEY, index);
       localStorage.setItem(STORAGE_META_KEY, JSON.stringify({ indexedAt: Date.now(), count: index.length }));
       updateIndexStatus();
       buildFilters();
@@ -848,7 +888,7 @@
       setUpdateStatus(null);
 
     } catch (e) {
-      if (!silent) showError(`실패: ${e.message}\n브라우저에서 직접 열어서 사용해주세요.`);
+      if (!silent) showError(`업데이트 실패: ${e.message}`);
       setUpdateStatus(null);
     } finally {
       bgUpdating = false;
@@ -857,9 +897,9 @@
     }
   }
 
-  function clearIndex() {
+  async function clearIndex() {
     if (!confirm('캐시를 초기화할까요? 다시 인덱싱이 필요해요.')) return;
-    localStorage.removeItem(STORAGE_KEY);
+    await idbDelete(STORAGE_KEY);
     localStorage.removeItem(STORAGE_META_KEY);
     localStorage.removeItem(STORAGE_TS_KEY);
     localStorage.removeItem(STORAGE_FILEMAP_KEY);
