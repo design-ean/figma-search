@@ -806,12 +806,46 @@
   }
 
   async function fetchFileFrames(f, pat) {
-    const data = await figmaFetch(`/files/${f.key}?depth=6`, pat);
+    // Phase 1: 프레임 구조 파악 (depth=4)
+    const data = await figmaFetch(`/files/${f.key}?depth=4`, pat);
     const frames = [];
 
     for (const page of (data.document?.children || [])) {
       if (isExcludedPage(page.name)) continue;
       extractFramesFromNodes(page.children || [], f, page.name, frames, 0);
+    }
+
+    if (frames.length === 0) return frames;
+
+    // Phase 2: 화면 프레임만 /nodes depth=6으로 재추출 (컴포넌트 내부 텍스트 포함)
+    const screenFrames = frames.filter(fr => isScreenFrame(fr.frame_name));
+    const targetIds = [...new Set(screenFrames.map(fr => fr.sfid || fr.frame_id))];
+
+    const BATCH_SIZE = 150;
+    const nodeMap = {};
+    for (let i = 0; i < targetIds.length; i += BATCH_SIZE) {
+      const batch = targetIds.slice(i, i + BATCH_SIZE);
+      try {
+        const nodeData = await figmaFetch(`/files/${f.key}/nodes?ids=${batch.join(',')}&depth=6`, pat);
+        Object.assign(nodeMap, nodeData.nodes || {});
+      } catch (e) {
+        console.warn('nodes fetch 실패', e);
+      }
+    }
+
+    // Phase 3: tc/ci/ln 재추출
+    for (const entry of frames) {
+      if (!isScreenFrame(entry.frame_name)) continue;
+      const nodeId = entry.sfid || entry.frame_id;
+      const children = nodeMap[nodeId]?.document?.children;
+      if (children) {
+        const tc = extractTextContent(children);
+        const ci = [...extractComponentNames(children)].join(' ');
+        const ln = [...extractLayerNames(children)].join(' ').slice(0, 200);
+        if (tc) entry.tc = tc; else delete entry.tc;
+        if (ci) entry.ci = ci; else delete entry.ci;
+        if (ln) entry.ln = ln; else delete entry.ln;
+      }
     }
 
     return frames;
