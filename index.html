@@ -754,8 +754,8 @@
     return texts.join(' ').replace(/\s+/g, ' ').slice(0, 80);
   }
 
-  function extractComponentNames(children, maxDepth = 3) {
-    if (!children || maxDepth <= 0) return new Set();
+  function extractComponentNames(children) {
+    if (!children) return new Set();
     const names = new Set();
     for (const node of children) {
       if (node.type === 'INSTANCE' && node.name) {
@@ -763,7 +763,7 @@
         if (category && category.length > 1) names.add(category);
       }
       if (node.children) {
-        for (const n of extractComponentNames(node.children, maxDepth - 1)) names.add(n);
+        for (const n of extractComponentNames(node.children)) names.add(n);
       }
     }
     return names;
