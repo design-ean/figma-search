@@ -771,7 +771,7 @@
 
   // INSTANCE 제외한 레이어명 추출 (로컬 그룹·프레임 등 디자이너 작성 이름)
   const LAYER_NOISE = /^(frame|group|rectangle|ellipse|vector|line|polygon|star|text|image|component|\d[\d\s]*)$/i;
-  function extractLayerNames(children, maxDepth = 2) {
+  function extractLayerNames(children, maxDepth = 4) {
     if (!children || maxDepth <= 0) return new Set();
     const names = new Set();
     for (const node of children) {
@@ -795,7 +795,7 @@
         const sfid = isScreen ? node.id : (parentSfid || node.id);
         const tc = isScreen ? extractTextContent(node.children || []) : '';
         const ci = isScreen ? [...extractComponentNames(node.children || [])].join(' ') : '';
-        const ln = isScreen ? [...extractLayerNames(node.children || [])].join(' ').slice(0, 100) : '';
+        const ln = isScreen ? [...extractLayerNames(node.children || [])].join(' ').slice(0, 200) : '';
         out.push(makeEntry(f, pageName, node.name, node.id, tc, ci, ln, sfid));
       } else if (node.type === 'SECTION' || node.type === 'GROUP') {
         extractFramesFromNodes(node.children || [], f, pageName, out, depth + 1, parentSfid);
